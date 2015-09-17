@@ -1,0 +1,8 @@
+contrib/avr-utils
+contrib/.spreadavr.prepared
+teensy/firmware/*.a
+teensy/firmware/*.o
+teensy/firmware/*.d
+teensy/firmware/*.d.*
+teensy/firmware/*.hex
+teensy/firmware/*.elf
