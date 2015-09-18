@@ -27,10 +27,9 @@ LIBS := util led lufa-descriptor-usbserial usbio
 CXX_LIBS := arduino-stub
 EXTERNAL_LIBS := fastled lufa
 SPREADAVR_PATH := ../../contrib/avr-utils
-RESET_FUNC := $(SPREADAVR_PATH)/tools/reset_lufa_cdc
-RESET_PARAM := '!'
 
 FASTLED_PATH := $(SPREADAVR_PATH)/contrib/FastLED
+FASTLED_OPTS := -DCORE_TEENSY
 
 LUFA_PATH := $(SPREADAVR_PATH)/contrib/lufa-LUFA-140928
 LUFA_OPTS  = -D USB_DEVICE_ONLY

@@ -34,40 +34,90 @@
 #include "FastLED.h"
 
 
+char line[64];
+size_t line_offset = 0;
+
 #define NUM_LEDS 8
-#define DATA_PIN 3    // PD0 @ Atmega32U4
+#define NUM_FRAMES 32
 
-// Define the array of leds
-CRGB leds[NUM_LEDS];
+typedef struct {
+  CRGB leds[NUM_LEDS];
+  uint8_t delay;
+} frame_t;
 
-void fastled_init()
+typedef struct {
+  frame_t frames[NUM_FRAMES];
+  uint8_t len;
+  uint8_t offset;
+} animation_t;
+
+animation_t animation[2];
+uint8_t animation_idx = 0;
+#define ACTIVE animation_idx
+#define INACTIVE (animation_idx ? 0 : 1)
+
+CRGB ledsout[NUM_LEDS];
+#define DATA_PIN 23    // PD5 @ Teensy
+
+void animation_init()
 {
   arduino_init();
-  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, DATA_PIN, GRB>(ledsout, NUM_LEDS);
 }
 
-void leds_set(CRGB color)
+void animation_task(void)
 {
-  uint8_t i;
-  for(i = 0; i < NUM_LEDS; ++i) {
-    leds[i] = color;
-  }
-  FastLED.show();
+  // TODO:
+  //  delay elapsed?  NO-> return
+  //  YES:
+  //  increment-with-wraparound(animation[ACTIVE].offset)
+  //  ledsout = animation[ACTIVE].frames[animation[ACTIVE].offset].leds
+  //  nextdelay = animation[ACTIVE].frames[animation[ACTIVE].offset].delay
 }
 
-void handle_cmd(uint8_t cmd)
+
+
+bool read_line(void)
 {
-  switch(cmd) {
-  case '0': leds_set(CRGB::Black); led_off(); break;
-  case '1': leds_set(CRGB::White); led_on(); break;
-  case 'r': leds_set(CRGB::Red); led_on(); break;
-  case 'g': leds_set(CRGB::Green); led_on(); break;
-  case 'b': leds_set(CRGB::Blue); led_on(); break;
-  case '!': reset2bootloader(); break;
-  default: printf("error\r\n"); return;
+  usbio_task();
+  int16_t BytesReceived = usbio_bytes_received();
+  while(BytesReceived > 0) {
+    int ReceivedByte = fgetc(stdin);
+    BytesReceived--;
+    if(ReceivedByte == EOF)
+      line_offset = 0;
+    else {
+      line[line_offset] = (char)ReceivedByte;
+      switch(line[line_offset]) {
+      case '\r':
+      case '\n': {
+        line[line_offset] = 0;
+        line_offset = 0;
+        return true;
+      }
+      default: {
+        line_offset++;
+        if(line_offset >= sizeof(line)) line_offset = 0;
+        break;
+      }
+      }
+    }
   }
-  printf("ok\r\n");
+  return false;
 }
+
+void parse_line(void)
+{
+  led_on();
+      // TODO:
+      // if Line ~= 'Sll' -> reset animation[PASSIVE].offset, animation[PASSIVE].len = ll
+      // if Line ~= 'Fddxxx....xxx -> animation[PASSIVE].frames[animation[ACTIVE].offset].delay = dd,
+      //                              animation[PASSIVE].frames[animation[ACTIVE].offset].leds = xxx...xxxx
+      // if Line ~= 'E' -> animation[PASSIVE].offset = 0, PASSIVE <-> ACTIVE
+  led_off();
+}
+
+
 
 int main(void)
 {
@@ -77,19 +127,13 @@ int main(void)
   cpu_init();
   led_init();
   usbio_init();
-  fastled_init();
+  animation_init();
   sei();
 
   for(;;) {
-    int16_t BytesReceived = usbio_bytes_received();
-    while(BytesReceived > 0) {
-      int ReceivedByte = fgetc(stdin);
-      if(ReceivedByte != EOF) {
-        handle_cmd(ReceivedByte);
-      }
-      BytesReceived--;
+    if(read_line()) {
+      parse_line();
     }
-
-    usbio_task();
+    animation_task();
   }
 }
