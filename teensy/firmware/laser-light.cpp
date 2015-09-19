@@ -92,7 +92,6 @@ bool read_line(void)
       case '\r':
       case '\n': {
         line[line_offset] = 0;
-        line_offset = 0;
         return true;
       }
       default: {
@@ -108,15 +107,15 @@ bool read_line(void)
 
 void parse_line(void)
 {
-  led_on();
-      // TODO:
-      // if Line ~= 'Sll' -> reset animation[PASSIVE].offset, animation[PASSIVE].len = ll
-      // if Line ~= 'Fddxxx....xxx -> animation[PASSIVE].frames[animation[ACTIVE].offset].delay = dd,
-      //                              animation[PASSIVE].frames[animation[ACTIVE].offset].leds = xxx...xxxx
-      // if Line ~= 'E' -> animation[PASSIVE].offset = 0, PASSIVE <-> ACTIVE
-  led_off();
+  switch(line[0]) {
+  case 'S': break; // TODO: 'Sll'           -> reset animation[INACTIVE].offset, animation[INACTIVE].len = ll
+  case 'F': break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].offset].delay = dd,
+                   //                          animation[INACTIVE].frames[animation[INACTIVE].offset].leds = xxx...xxxx
+  case 'E': break; // TODO:  'E'            -> animation[INACTIVE].offset = 0, INACTIVE <-> ACTIVE
+  case '!': reset2bootloader(); break;
+  }
+  line_offset = 0;
 }
-
 
 
 int main(void)
