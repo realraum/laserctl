@@ -34,9 +34,6 @@
 #include "FastLED.h"
 
 
-char line[64];
-size_t line_offset = 0;
-
 #define NUM_LEDS 8
 #define NUM_FRAMES 32
 
@@ -48,7 +45,7 @@ typedef struct {
 typedef struct {
   frame_t frames[NUM_FRAMES];
   uint8_t len;
-  uint8_t offset;
+  uint8_t current;
 } animation_t;
 
 animation_t animation[2];
@@ -63,6 +60,9 @@ void animation_init()
 {
   arduino_init();
   FastLED.addLeds<WS2812B, DATA_PIN, GRB>(ledsout, NUM_LEDS);
+
+  ACTIVE = 0;
+  memset(animation, 0, sizeof(animation));
 }
 
 void animation_task(void)
@@ -70,12 +70,31 @@ void animation_task(void)
   // TODO:
   //  delay elapsed?  NO-> return
   //  YES:
-  //  increment-with-wraparound(animation[ACTIVE].offset)
-  //  ledsout = animation[ACTIVE].frames[animation[ACTIVE].offset].leds
-  //  nextdelay = animation[ACTIVE].frames[animation[ACTIVE].offset].delay
+  //  increment-with-wraparound(animation[ACTIVE].current)
+  //  ledsout = animation[ACTIVE].frames[animation[ACTIVE].current].leds
+  //  nextdelay = animation[ACTIVE].frames[animation[ACTIVE].current].delay
+}
+
+void animation_dump(uint8_t idx)
+{
+  uint8_t i;
+  printf("animation[%s]: %d frames\r\n", idx == ACTIVE ? "active" : "inactive", animation[idx].len);
+  for(i = 0; i < animation[idx].len; ++i) {
+    printf("%3d: %c ", i, animation[idx].current < i ? '-' : (animation[idx].current == i ? '>' : '+'));
+    uint8_t j;
+    for(j = 0; j < NUM_LEDS; ++j) {
+      printf("0x%02X%02X%02X ", animation[idx].frames[animation[idx].current].leds[j][0],
+                                animation[idx].frames[animation[idx].current].leds[j][1],
+                                animation[idx].frames[animation[idx].current].leds[j][2]);
+    }
+    printf(" %d ms\r\n", animation[idx].frames[animation[idx].current].delay);
+  }
 }
 
 
+
+char line[64];
+size_t line_pos = 0;
 
 bool read_line(void)
 {
@@ -85,18 +104,18 @@ bool read_line(void)
     int ReceivedByte = fgetc(stdin);
     BytesReceived--;
     if(ReceivedByte == EOF)
-      line_offset = 0;
+      line_pos = 0;
     else {
-      line[line_offset] = (char)ReceivedByte;
-      switch(line[line_offset]) {
+      line[line_pos] = (char)ReceivedByte;
+      switch(line[line_pos]) {
       case '\r':
       case '\n': {
-        line[line_offset] = 0;
-        return line_offset > 0 ? true : false;
+        line[line_pos] = 0;
+        return line_pos > 0 ? true : false;
       }
       default: {
-        line_offset++;
-        if(line_offset >= sizeof(line)) line_offset = 0;
+        line_pos++;
+        if(line_pos >= sizeof(line)) line_pos = 0;
         break;
       }
       }
@@ -108,13 +127,15 @@ bool read_line(void)
 void parse_line(void)
 {
   switch(line[0]) {
-  case 'S': printf("Start: not yet implemented!\r\n"); break; // TODO: 'Sll'           -> reset animation[INACTIVE].offset, animation[INACTIVE].len = ll
-  case 'F': printf("Frame: not yet implemented!\r\n"); break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].offset].delay = dd,
-                   //                          animation[INACTIVE].frames[animation[INACTIVE].offset].leds = xxx...xxxx
-  case 'E': printf("End: not yet implemented!\r\n"); break; // TODO:  'E'            -> animation[INACTIVE].offset = 0, INACTIVE <-> ACTIVE
+  case 'S': printf("Start: not yet implemented!\r\n"); break; // TODO: 'Sll'           -> reset animation[INACTIVE].current, animation[INACTIVE].len = ll
+  case 'F': printf("Frame: not yet implemented!\r\n"); break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].current].delay = dd,
+                   //                          animation[INACTIVE].frames[animation[INACTIVE].current].leds = xxx...xxxx
+  case 'E': printf("End: not yet implemented!\r\n"); break; // TODO:  'E'            -> animation[INACTIVE].current = 0, ACTIVE = INACTIVE
+  case 'D': animation_dump(ACTIVE); break;
+  case 'd': animation_dump(INACTIVE); break;
   case '!': reset2bootloader(); break;
   }
-  line_offset = 0;
+  line_pos = 0;
 }
 
 
