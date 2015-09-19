@@ -92,7 +92,7 @@ bool read_line(void)
       case '\r':
       case '\n': {
         line[line_offset] = 0;
-        return true;
+        return line_offset > 0 ? true : false;
       }
       default: {
         line_offset++;
@@ -108,10 +108,10 @@ bool read_line(void)
 void parse_line(void)
 {
   switch(line[0]) {
-  case 'S': break; // TODO: 'Sll'           -> reset animation[INACTIVE].offset, animation[INACTIVE].len = ll
-  case 'F': break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].offset].delay = dd,
+  case 'S': printf("Start: not yet implemented!\r\n"); break; // TODO: 'Sll'           -> reset animation[INACTIVE].offset, animation[INACTIVE].len = ll
+  case 'F': printf("Frame: not yet implemented!\r\n"); break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].offset].delay = dd,
                    //                          animation[INACTIVE].frames[animation[INACTIVE].offset].leds = xxx...xxxx
-  case 'E': break; // TODO:  'E'            -> animation[INACTIVE].offset = 0, INACTIVE <-> ACTIVE
+  case 'E': printf("End: not yet implemented!\r\n"); break; // TODO:  'E'            -> animation[INACTIVE].offset = 0, INACTIVE <-> ACTIVE
   case '!': reset2bootloader(); break;
   }
   line_offset = 0;
