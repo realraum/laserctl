@@ -83,11 +83,11 @@ void animation_dump(uint8_t idx)
     printf("%3d: %c ", i, animation[idx].current < i ? '-' : (animation[idx].current == i ? '>' : '+'));
     uint8_t j;
     for(j = 0; j < NUM_LEDS; ++j) {
-      printf("0x%02X%02X%02X ", animation[idx].frames[animation[idx].current].leds[j][0],
-                                animation[idx].frames[animation[idx].current].leds[j][1],
-                                animation[idx].frames[animation[idx].current].leds[j][2]);
+      printf("0x%02X%02X%02X ", animation[idx].frames[i].leds[j][0],
+                                animation[idx].frames[i].leds[j][1],
+                                animation[idx].frames[i].leds[j][2]);
     }
-    printf(" %d ms\r\n", animation[idx].frames[animation[idx].current].delay);
+    printf(" %3d ms\r\n", animation[idx].frames[i].delay);
   }
 }
 
@@ -95,6 +95,80 @@ void animation_dump(uint8_t idx)
 
 char line[64];
 size_t line_pos = 0;
+
+static inline uint8_t hextobin(uint8_t c)
+{
+  switch(c) {
+  case '1': return 1;
+  case '2': return 2;
+  case '3': return 3;
+  case '4': return 4;
+  case '5': return 5;
+  case '6': return 6;
+  case '7': return 7;
+  case '8': return 8;
+  case '9': return 9;
+  case 'a':
+  case 'A': return 10;
+  case 'b':
+  case 'B': return 11;
+  case 'c':
+  case 'C': return 12;
+  case 'd':
+  case 'D': return 13;
+  case 'e':
+  case 'E': return 14;
+  case 'f':
+  case 'F': return 15;
+  }
+  return 0;
+}
+
+void handle_start(void)
+{
+  if(line_pos != 3) return;
+
+  memset(&(animation[INACTIVE]), 0, sizeof(animation[INACTIVE]));
+  animation[INACTIVE].len = hextobin(line[1]) << 4 | hextobin(line[2]);
+  if(animation[INACTIVE].len > NUM_FRAMES)
+    animation[INACTIVE].len = NUM_FRAMES;
+}
+
+void handle_frame(void)
+{
+// F1700112233445566778899AABBCCEEDDEEFF00112233445566
+// F3fAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55
+  if((line_pos != (3 + NUM_LEDS*6)) || animation[INACTIVE].current >= NUM_FRAMES) return;
+
+  animation[INACTIVE].frames[animation[INACTIVE].current].delay = hextobin(line[1]) << 4 | hextobin(line[2]);
+  uint8_t i;
+  for(i = 0; i < NUM_LEDS; ++i) {
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][0] = hextobin(line[3 + i*6 + 0]) << 4 | hextobin(line[3 + i*6 + 1]);
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][1] = hextobin(line[3 + i*6 + 2]) << 4 | hextobin(line[3 + i*6 + 3]);
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][2] = hextobin(line[3 + i*6 + 4]) << 4 | hextobin(line[3 + i*6 + 5]);
+  }
+  animation[INACTIVE].current += animation[INACTIVE].current < NUM_FRAMES ? 1 : 0;
+}
+
+void handle_end(void)
+{
+  animation[INACTIVE].current = 0;
+  ACTIVE = INACTIVE;
+// TODO: restart animation_task
+}
+
+void parse_line(void)
+{
+  switch(line[0]) {
+  case 'S': handle_start(); break;
+  case 'F': handle_frame(); break;
+  case 'E': handle_end(); break;
+  case 'D': animation_dump(ACTIVE); break;
+  case 'd': animation_dump(INACTIVE); break;
+  case '!': reset2bootloader(); break;
+  }
+  line_pos = 0;
+}
 
 bool read_line(void)
 {
@@ -124,19 +198,6 @@ bool read_line(void)
   return false;
 }
 
-void parse_line(void)
-{
-  switch(line[0]) {
-  case 'S': printf("Start: not yet implemented!\r\n"); break; // TODO: 'Sll'           -> reset animation[INACTIVE].current, animation[INACTIVE].len = ll
-  case 'F': printf("Frame: not yet implemented!\r\n"); break; // TODO: 'Fddxxx....xxx' -> animation[INACTIVE].frames[animation[INACTIVE].current].delay = dd,
-                   //                          animation[INACTIVE].frames[animation[INACTIVE].current].leds = xxx...xxxx
-  case 'E': printf("End: not yet implemented!\r\n"); break; // TODO:  'E'            -> animation[INACTIVE].current = 0, ACTIVE = INACTIVE
-  case 'D': animation_dump(ACTIVE); break;
-  case 'd': animation_dump(INACTIVE); break;
-  case '!': reset2bootloader(); break;
-  }
-  line_pos = 0;
-}
 
 
 int main(void)
