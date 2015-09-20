@@ -39,7 +39,7 @@
 
 typedef struct {
   CRGB leds[NUM_LEDS];
-  uint8_t delay;
+  uint16_t delay;
 } frame_t;
 
 typedef struct {
@@ -87,7 +87,7 @@ void animation_dump(uint8_t idx)
                                 animation[idx].frames[i].leds[j][1],
                                 animation[idx].frames[i].leds[j][2]);
     }
-    printf(" %3d ms\r\n", animation[idx].frames[i].delay);
+    printf(" %5d ms\r\n", animation[idx].frames[i].delay);
   }
 }
 
@@ -136,16 +136,17 @@ void handle_start(void)
 
 void handle_frame(void)
 {
-// F1700112233445566778899AABBCCEEDDEEFF00112233445566
-// F3fAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55
-  if((line_pos != (3 + NUM_LEDS*6)) || animation[INACTIVE].current >= NUM_FRAMES) return;
+// F201700112233445566778899AABBCCEEDDEEFF00112233445566
+// F013fAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55
+  if((line_pos != (5 + NUM_LEDS*6)) || animation[INACTIVE].current >= NUM_FRAMES) return;
 
-  animation[INACTIVE].frames[animation[INACTIVE].current].delay = hextobin(line[1]) << 4 | hextobin(line[2]);
+  animation[INACTIVE].frames[animation[INACTIVE].current].delay = hextobin(line[1]) << 12 | hextobin(line[2]) << 8 |
+                                                                  hextobin(line[3]) <<  4 | hextobin(line[4]);
   uint8_t i;
   for(i = 0; i < NUM_LEDS; ++i) {
-    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][0] = hextobin(line[3 + i*6 + 0]) << 4 | hextobin(line[3 + i*6 + 1]);
-    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][1] = hextobin(line[3 + i*6 + 2]) << 4 | hextobin(line[3 + i*6 + 3]);
-    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][2] = hextobin(line[3 + i*6 + 4]) << 4 | hextobin(line[3 + i*6 + 5]);
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][0] = hextobin(line[5 + i*6 + 0]) << 4 | hextobin(line[5 + i*6 + 1]);
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][1] = hextobin(line[5 + i*6 + 2]) << 4 | hextobin(line[5 + i*6 + 3]);
+    animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][2] = hextobin(line[5 + i*6 + 4]) << 4 | hextobin(line[5 + i*6 + 5]);
   }
   animation[INACTIVE].current += animation[INACTIVE].current < NUM_FRAMES ? 1 : 0;
 }
