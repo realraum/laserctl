@@ -35,7 +35,7 @@
 
 
 #define NUM_LEDS 8
-#define NUM_FRAMES 32
+#define NUM_FRAMES 40
 
 typedef struct {
   CRGB leds[NUM_LEDS];
@@ -52,9 +52,16 @@ animation_t animation[2];
 uint8_t animation_idx = 0;
 #define ACTIVE animation_idx
 #define INACTIVE (animation_idx ? 0 : 1)
+volatile uint16_t mscnt = 0;
 
 CRGB ledsout[NUM_LEDS];
 #define DATA_PIN 23    // PD5 @ Teensy
+
+
+ISR(TIMER1_COMPA_vect)
+{
+  mscnt++;
+}
 
 void animation_init()
 {
@@ -63,16 +70,45 @@ void animation_init()
 
   ACTIVE = 0;
   memset(animation, 0, sizeof(animation));
+
+  // Timer1 in CTC mode generates interupt every 1ms
+  TCCR1A = 0;
+  TCCR1B = (1<<WGM12) | (1<<CS10);
+  TCCR1C = 0;
+  TCNT1 = 0;
+  OCR1A = (F_CPU/1000) - 1;
+  TIMSK1 = (1<<OCIE1A);
 }
 
 void animation_task(void)
 {
-  // TODO:
-  //  delay elapsed?  NO-> return
-  //  YES:
-  //  increment-with-wraparound(animation[ACTIVE].current)
-  //  ledsout = animation[ACTIVE].frames[animation[ACTIVE].current].leds
-  //  nextdelay = animation[ACTIVE].frames[animation[ACTIVE].current].delay
+  if(!animation[ACTIVE].len)
+    return;
+
+  cli();
+  if(mscnt >= animation[ACTIVE].frames[animation[ACTIVE].current].delay) {
+    mscnt = 0;
+    TCNT1 = 0;
+    sei();
+    animation[ACTIVE].current = animation[ACTIVE].current >= (animation[ACTIVE].len-1) ? 0 : animation[ACTIVE].current + 1;
+    memcpy(ledsout, animation[ACTIVE].frames[animation[ACTIVE].current].leds, NUM_LEDS*3);
+    FastLED.show();
+  }
+  sei();
+}
+
+void animation_start(void)
+{
+  if(!animation[ACTIVE].len) {
+    fill_solid(ledsout, NUM_LEDS, CRGB::Black);
+  } else {
+    memcpy(ledsout, animation[ACTIVE].frames[animation[ACTIVE].current].leds, NUM_LEDS*3);
+  }
+  FastLED.show();
+  cli();
+  mscnt = 0;
+  TCNT1 = 0;
+  sei();
 }
 
 void animation_dump(uint8_t idx)
@@ -136,8 +172,17 @@ void handle_start(void)
 
 void handle_frame(void)
 {
-// F201700112233445566778899AABBCCEEDDEEFF00112233445566
-// F013fAA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55AA55
+// F0064FF000000FF000000FFFF000000FF000000FFFF000000FF00
+// F00640000FFFF000000FF000000FFFF000000FF000000FFFF0000
+// F006400FF000000FFFF000000FF000000FFFF000000FF000000FF
+
+// F03E8FF000000FF000000FFFF000000FF000000FFFF000000FF00
+// F03E80000FFFF000000FF000000FFFF000000FF000000FFFF0000
+// F03E800FF000000FFFF000000FF000000FFFF000000FF000000FF
+
+// F0064FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+// F0384000000000000000000000000000000000000000000000000
+
   if((line_pos != (5 + NUM_LEDS*6)) || animation[INACTIVE].current >= NUM_FRAMES) return;
 
   animation[INACTIVE].frames[animation[INACTIVE].current].delay = hextobin(line[1]) << 12 | hextobin(line[2]) << 8 |
@@ -155,7 +200,7 @@ void handle_end(void)
 {
   animation[INACTIVE].current = 0;
   ACTIVE = INACTIVE;
-// TODO: restart animation_task
+  animation_start();
 }
 
 void parse_line(void)
@@ -212,6 +257,7 @@ int main(void)
   animation_init();
   sei();
 
+  animation_start();
   for(;;) {
     if(read_line()) {
       parse_line();
