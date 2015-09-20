@@ -36,6 +36,7 @@
 
 #define NUM_LEDS 8
 #define NUM_FRAMES 40
+#define MAX_DELAY 60000
 
 typedef struct {
   CRGB leds[NUM_LEDS];
@@ -90,6 +91,7 @@ void animation_task(void)
     mscnt = 0;
     TCNT1 = 0;
     sei();
+
     animation[ACTIVE].current = animation[ACTIVE].current >= (animation[ACTIVE].len-1) ? 0 : animation[ACTIVE].current + 1;
     memcpy(ledsout, animation[ACTIVE].frames[animation[ACTIVE].current].leds, NUM_LEDS*3);
     FastLED.show();
@@ -105,6 +107,7 @@ void animation_start(void)
     memcpy(ledsout, animation[ACTIVE].frames[animation[ACTIVE].current].leds, NUM_LEDS*3);
   }
   FastLED.show();
+
   cli();
   mscnt = 0;
   TCNT1 = 0;
@@ -172,21 +175,11 @@ void handle_start(void)
 
 void handle_frame(void)
 {
-// F0064FF000000FF000000FFFF000000FF000000FFFF000000FF00
-// F00640000FFFF000000FF000000FFFF000000FF000000FFFF0000
-// F006400FF000000FFFF000000FF000000FFFF000000FF000000FF
-
-// F03E8FF000000FF000000FFFF000000FF000000FFFF000000FF00
-// F03E80000FFFF000000FF000000FFFF000000FF000000FFFF0000
-// F03E800FF000000FFFF000000FF000000FFFF000000FF000000FF
-
-// F0064FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-// F0384000000000000000000000000000000000000000000000000
-
   if((line_pos != (5 + NUM_LEDS*6)) || animation[INACTIVE].current >= NUM_FRAMES) return;
 
-  animation[INACTIVE].frames[animation[INACTIVE].current].delay = hextobin(line[1]) << 12 | hextobin(line[2]) << 8 |
-                                                                  hextobin(line[3]) <<  4 | hextobin(line[4]);
+  uint16_t delay = hextobin(line[1]) << 12 | hextobin(line[2]) << 8 | hextobin(line[3]) <<  4 | hextobin(line[4]);
+  animation[INACTIVE].frames[animation[INACTIVE].current].delay = delay > MAX_DELAY ? MAX_DELAY : delay;
+
   uint8_t i;
   for(i = 0; i < NUM_LEDS; ++i) {
     animation[INACTIVE].frames[animation[INACTIVE].current].leds[i][0] = hextobin(line[5 + i*6 + 0]) << 4 | hextobin(line[5 + i*6 + 1]);
