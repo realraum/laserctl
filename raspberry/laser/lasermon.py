@@ -33,9 +33,11 @@ class LaserMon():
                 id = self.myDatabase.cardExists(uid)
                 if id >= 0:
                     #print ("READ: Card found")
+                    self.beepShort()
                     return id
                 else:
                     #print ("READ: Card NOT found")
+                    self.beepLong()
                     return -1
                 break
             else:
@@ -61,6 +63,11 @@ class LaserMon():
     def beepShort(self):
         GPIO.output(BUZZER_PIN, GPIO.LOW)
         time.sleep(0.1)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+
+    def beepLong(self):
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(1)
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
     #  wait for a card to read
