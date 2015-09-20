@@ -2,16 +2,18 @@ import RPi.GPIO as GPIO
 import time, threading
 from cardsdb import CardsDB
 import rfid
+import math
 
 #BUZZER_PIN = 8
 #LASER_PIN = 10
 BUZZER_PIN = 14
 LASER_PIN = 15
+NUM_WARNINGS = 5
 
 #----------------------------------------------------------------------------
 #
 # Lasermon
-# - init 
+# - init
 #   switch off relais and beeper
 # - if card with units detected -> open relais, start timer
 # - timer timeout -> if card is not detected within 15 secs -> switch off, else restart timer
@@ -59,58 +61,70 @@ class LaserMon():
         else:
             return -1
 
+    def beepCardLost(self):
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(0.05)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(0.02)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(0.05)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(0.02)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(0.2)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
     def beepShort(self):
         GPIO.output(BUZZER_PIN, GPIO.LOW)
-        time.sleep(0.1)
+        time.sleep(0.08)
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
     def beepLong(self):
         GPIO.output(BUZZER_PIN, GPIO.LOW)
-        time.sleep(1)
+        time.sleep(1.5)
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
     #  wait for a card to read
     #  if card -> start laser, init countr
-    #  wait 1 Minute 
+    #  wait 1 Minute
     #  set alarm
-    #  
-    #  
+    #
+    #
     def run(self):
 
         secondsRunning = 60
         secondsWarning = 10
 
+        self.beepShort()
         self.laserOn()
 
-        continueLaser = True 
-        while continueLaser == True:
-            startTime = time.time()
-            finishTime = startTime + secondsRunning
+        startTime = time.time()
+        lostcounter = NUM_WARNINGS
+        while True:
+            time.sleep(1)
+            cardId = self.checkCard()
+            if cardId == self.cardId:
+                lostcounter = NUM_WARNINGS
+                continue
 
-            while time.time() < finishTime:
-                time.sleep(1)
+            # Card Lost !!
+            if lostcounter == NUM_WARNINGS:
+                endTime = time.time()
+            if lostcounter > 0:
+                self.beepCardLost()
+                lostcounter -= 1
+                continue
 
-            self.beepShort()
-
-            self.numberMinutes += 1
-
-            counter = 0
-            while counter < secondsWarning:
-                cardId = self.checkCard()
-                if cardId == self.cardId:
-                    break
-                counter = counter+1
-                time.sleep(0.5)
-                self.beepShort()
-            else:
-                continueLaser = False 
-
+            # Lost counter == 0
+            self.beepLong()
+            break
         # switch off laser
         self.laserOff()
 
         # add minutes to card
-        self.myDatabase.update_units(self.cardId,self.numberMinutes)
+        numberMinutes = int(math.ceil((endTime - startTime)/60.0))
+        self.myDatabase.update_units(self.cardId,numberMinutes)
+        print("End cardID %d, minutes=%d" % (myApp.cardId, numberMinutes))
 
     def laserOff(self):
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
