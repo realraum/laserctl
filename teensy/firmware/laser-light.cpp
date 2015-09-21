@@ -35,7 +35,7 @@
 
 
 #define NUM_LEDS 8
-#define NUM_FRAMES 40
+#define NUM_FRAMES 35
 #define MAX_DELAY 60000
 
 typedef struct {

@@ -9,7 +9,7 @@ import colorsys
 #LASER_PIN = 10
 BUZZER_PIN = 14
 LASER_PIN = 15
-DEADMANBUTTON_GPIO = 24 #PIN8, GPIO24
+DEADMANBUTTON_GPIO = 25 #PIN22, GPIO25
 NUM_WARNINGS = 5
 DEADMANBUTTON_TIMEOUT_S = 30
 LOOP_DELAY_S = 1
@@ -100,10 +100,12 @@ class LaserMon():
         secondsRunning = 60
         secondsWarning = 10
 
+        visualizeLaserHot()
         self.beepShort()
         self.laserOn()
 
         startTime = time.time()
+        endTime = startTime
         lostcounter = NUM_WARNINGS
         deadmanbutton_timeout_s = DEADMANBUTTON_TIMEOUT_S
         lowest_fraction = 1.0
@@ -115,9 +117,10 @@ class LaserMon():
             visualizeRemainingTimeFraction(fraction_time_remaining_deadmanbutton)
             ## Check DeadMan Button
             if getSecondsSinceLastDeadmanButtonPress() > deadmanbutton_timeout_s:
+                endTime = time.time()
                 break
             ## if someone waits until the last second, he needs to press more often in the future
-            if lowest_fraction == fraction_time_remaining_deadmanbutton and lowest_fraction < 0.05:
+            if lowest_fraction == fraction_time_remaining_deadmanbutton and lowest_fraction < 0.10:
                 deadmanbutton_timeout_s = DEADMANBUTTON_TIMEOUT_S / 2
 
             ## Check for Card
@@ -141,6 +144,7 @@ class LaserMon():
             # Lost counter == 0
             break
         # switch off laser
+        visualizeLaserOff()
         self.beepLong()
         self.laserOff()
 
@@ -152,14 +156,12 @@ class LaserMon():
     def laserOff(self):
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
         GPIO.output(LASER_PIN, GPIO.HIGH)
-        visualizeLaserOff()
 
     def laserOn(self):
-        visualizeLaserHot()
         GPIO.output(LASER_PIN, GPIO.LOW)
 
 last_deadmanbutton_press = 0
-def buttonPressDeadManSwitchDetected():
+def buttonPressDeadManSwitchDetected(gpionum=None):
     global last_deadmanbutton_press
     last_deadmanbutton_press = time.time()
 
@@ -171,31 +173,33 @@ def hsv(h, s, v):
     return rgb(*colorsys.hsv_to_rgb(h, s, v))
 
 def rgb(r, g, b):
-    return "%X%X%X" % (int(r*0xff)&0xff, int(g*0xff)&0xff, int(b*0xff)&0xff)
+    return "%02X%02X%02X" % (int(r*0xff)&0xff, int(g*0xff)&0xff, int(b*0xff)&0xff)
 
 def visualizeRemainingTimeFraction(fraction):
+    if fraction < 0:
+        fraction = 0
     try:
-        frame_delay_start = "F0030"
+        frame_delay_start = "F0060"
         h = 0.3 + (1.0 - fraction) * 0.7 # start in green, go to red
-        v = 0.8 - fraction * 0.8 #max brightness
+        v = 0.5 - fraction * 0.5 #max brightness
         with open(LEDS_TEENSY_TTY, "w") as ttyfh:
-            ttyfh.write("S04\n")
+            ttyfh.write("S01\n")
             num_full = int(math.ceil(8.0 * fraction))
             num_empty = 8 - num_full
             ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.03)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.08)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.03)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v)]*num_full)+"\n")
+#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.02)]*num_full)+"\n")
+#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.05)]*num_full)+"\n")
+#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.02)]*num_full)+"\n")
+#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v)]*num_full)+"\n")
             ttyfh.write("E\n")
     except Exception as e:
         print(e)
 
 def visualizeLaserHot():
-    visualizeSendAnimationFile("white-blink.anim")
+    visualizeSendAnimationFile("rgb-slow.anim")
 
 def visualizeLaserOff():
-    visualizeSendAnimationFile("rgb-slow.anim")
+    visualizeSendAnimationFile("white-blink.anim")
 
 def visualizeStandby():
     visualizeSendAnimationFile("knightrider.anim")
@@ -216,8 +220,8 @@ if __name__ == '__main__':
     GPIO.setup(LASER_PIN, GPIO.OUT)
     GPIO.output(BUZZER_PIN, GPIO.HIGH)
     GPIO.output(LASER_PIN, GPIO.HIGH)
-    GPIO.setup(DEADMANBUTTON_GPIO, GPIO.INPUT, GPIO.PUD_UP)
-    GPIO.add_event_detect(DEADMANBUTTON_GPIO, GPIO.BOTH, buttonPressDeadManSwitchDetected, 90) #90ms debounce
+    GPIO.setup(DEADMANBUTTON_GPIO, GPIO.IN, GPIO.PUD_UP)
+    GPIO.add_event_detect(DEADMANBUTTON_GPIO, GPIO.BOTH, buttonPressDeadManSwitchDetected, 120) #120ms debounce
 
     myApp = LaserMon()
     while True:
