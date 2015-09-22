@@ -114,7 +114,8 @@ class LaserMon():
             time.sleep(LOOP_DELAY_S)
             fraction_time_remaining_deadmanbutton = 1.0 - (getSecondsSinceLastDeadmanButtonPress()/deadmanbutton_timeout_s)
             lowest_fraction = min(lowest_fraction, fraction_time_remaining_deadmanbutton)
-            visualizeRemainingTimeFraction(fraction_time_remaining_deadmanbutton)
+            if lostcounter == NUM_WARNINGS:
+                visualizeRemainingTimeFraction(fraction_time_remaining_deadmanbutton)
             ## Check DeadMan Button
             if getSecondsSinceLastDeadmanButtonPress() > deadmanbutton_timeout_s:
                 endTime = time.time()
@@ -132,6 +133,7 @@ class LaserMon():
             # Card Lost !!
             if lostcounter == NUM_WARNINGS:
                 endTime = time.time()
+                visualizeCardLost()
             if lostcounter > 0:
                 lostcounter -= 1
                 ## last ditch rescue ability
@@ -179,27 +181,39 @@ def visualizeRemainingTimeFraction(fraction):
     if fraction < 0:
         fraction = 0
     try:
-        frame_delay_start = "F0060"
-        h = 0.3 + (1.0 - fraction) * 0.7 # start in green, go to red
-        v = 0.5 - fraction * 0.5 #max brightness
+        #frame_delay_start = "F01F4" #500ms
+        frame_delay_start = "F0078" #1/8s
+        if fraction > 0.32:
+            h = 0.3 #green
+        else:
+            h = 0.045 #red
+        num_full = int(8.0 * fraction)
+        num_empty = 8 - int(math.ceil(8.0 * fraction))
+        num_gray = 8 - num_full - num_empty
+        sub_fraction = (8.0 * fraction - num_full)
+        v = sub_fraction * 0.4 #max brightness
         with open(LEDS_TEENSY_TTY, "w") as ttyfh:
-            ttyfh.write("S01\n")
-            num_full = int(math.ceil(8.0 * fraction))
-            num_empty = 8 - num_full
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v)]*num_full)+"\n")
-#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.02)]*num_full)+"\n")
-#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.05)]*num_full)+"\n")
-#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v+0.02)]*num_full)+"\n")
-#            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+[hsv(h, 1.0, v)]*num_full)+"\n")
+            ttyfh.write("S04\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h, 1.0, v)]*num_gray +[hsv(h, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.003, 1.0, v)]*num_gray +[hsv(h-0.003, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, 0.4)]*num_full)+"\n")
             ttyfh.write("E\n")
     except Exception as e:
         print(e)
 
 def visualizeLaserHot():
+    visualizeSendAnimationFile("white-blink.anim")
+
+def visualizeCardLost():
     visualizeSendAnimationFile("rgb-slow.anim")
 
 def visualizeLaserOff():
-    visualizeSendAnimationFile("white-blink.anim")
+    visualizeSendAnimationFile("rgb-fast.anim")
 
 def visualizeStandby():
     visualizeSendAnimationFile("knightrider.anim")
@@ -221,7 +235,7 @@ if __name__ == '__main__':
     GPIO.output(BUZZER_PIN, GPIO.HIGH)
     GPIO.output(LASER_PIN, GPIO.HIGH)
     GPIO.setup(DEADMANBUTTON_GPIO, GPIO.IN, GPIO.PUD_UP)
-    GPIO.add_event_detect(DEADMANBUTTON_GPIO, GPIO.BOTH, buttonPressDeadManSwitchDetected, 120) #120ms debounce
+    GPIO.add_event_detect(DEADMANBUTTON_GPIO, GPIO.BOTH, buttonPressDeadManSwitchDetected, 100) #100ms debounce
 
     myApp = LaserMon()
     while True:
