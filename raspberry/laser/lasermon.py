@@ -28,7 +28,6 @@ LEDS_TEENSY_TTY = "/dev/ttyACM0"
 class LaserMon():
     def __init__(self):
         self.myDatabase = CardsDB()
-        self.numberMinutes = 0
         self.continueLaser = False
         self.cardId = -1
 
@@ -106,6 +105,7 @@ class LaserMon():
 
         startTime = time.time()
         endTime = startTime
+        self.myDatabase.log_card_activated(self.cardId)
         lostcounter = NUM_WARNINGS
         deadmanbutton_timeout_s = DEADMANBUTTON_TIMEOUT_S
         lowest_fraction = 1.0
@@ -151,9 +151,9 @@ class LaserMon():
         self.laserOff()
 
         # add minutes to card
-        numberMinutes = int(math.ceil((endTime - startTime)/60.0))
-        self.myDatabase.update_units(self.cardId, numberMinutes)
-        print("End cardID %d, minutes=%d" % (myApp.cardId, numberMinutes))
+        numberSeconds = int(endTime - startTime)
+        self.myDatabase.log_card_finished(self.cardId, numberSeconds)
+        print("%d: End cardID %d, seconds=%d" % (time.time(), myApp.cardId, numberSeconds))
 
     def laserOff(self):
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
@@ -242,8 +242,7 @@ if __name__ == '__main__':
         visualizeStandby()
         myApp.cardId = myApp.readCard()
         if myApp.cardId >= 0:
-            print("Run cardID %d" % myApp.cardId)
+            print("%d: Run cardID %d" % (time.time(), myApp.cardId))
             myApp.continueLaser = True
-            myApp.numberMinutes = 0
             myApp.run()
 

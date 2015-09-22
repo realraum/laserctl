@@ -1,4 +1,4 @@
-import sqlite3 
+import sqlite3
 import curses
 import npyscreen
 import rfid
@@ -9,19 +9,14 @@ import rfid
 #
 #----------------------------------------------------------------------------
 class CardsDB(object):
-    def __init__(self, filename="db/cards.db"):
+    def __init__(self, filename="db/cards.db", initfn="db/crdb.sql"):
         self.dbfilename = filename
         db = sqlite3.connect(self.dbfilename)
         c = db.cursor()
-        c.execute(
-          "CREATE TABLE IF NOT EXISTS cards(\
-           id integer primary key,\
-           uid CHAR(128),\
-           vorname TEXT not null,\
-           nachname TEXT not null,\
-           units int,\
-           active int\
-           )")
+        with open(initfn) as crfh:
+            fc = crfh.read()
+        for stmt in fc.split("\n\n"):
+            c.execute(stmt)
         db.commit()
         c.close()
 
@@ -72,7 +67,7 @@ class CardsDB(object):
         c.close()
         if records == None:
             return -1
-        else: 
+        else:
             return records[0]
 
     def update_units(self, id, units):
@@ -82,3 +77,18 @@ class CardsDB(object):
                     WHERE id=?', (units, id))
         db.commit()
         c.close()
+
+    def log_card_activated(self, id):
+        db = sqlite3.connect(self.dbfilename)
+        c = db.cursor()
+        c.execute('INSERT INTO log(card_id,log_event) VALUES(?,0)', (id,))
+        db.commit()
+        c.close()
+
+    def log_card_finished(self, id, seconds):
+        db = sqlite3.connect(self.dbfilename)
+        c = db.cursor()
+        c.execute('INSERT INTO log(card_id,log_event,log_arg) VALUES(?,1,?)', (id,seconds))
+        db.commit()
+        c.close()
+
