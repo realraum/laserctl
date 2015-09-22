@@ -10,10 +10,11 @@ import colorsys
 BUZZER_PIN = 14
 LASER_PIN = 15
 DEADMANBUTTON_GPIO = 25 #PIN22, GPIO25
-NUM_WARNINGS = 5
+NUM_WARNINGS_CARD_LOST = 5
 DEADMANBUTTON_TIMEOUT_S = 30
 LOOP_DELAY_S = 1
 LEDS_TEENSY_TTY = "/dev/ttyACM0"
+FRACTION_RED = 0.32
 
 #----------------------------------------------------------------------------
 #
@@ -78,6 +79,15 @@ class LaserMon():
         time.sleep(0.2)
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
 
+    def beepButtonPressNeeded(self):
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(0.07)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+        time.sleep(0.08)
+        GPIO.output(BUZZER_PIN, GPIO.LOW)
+        time.sleep(0.07)
+        GPIO.output(BUZZER_PIN, GPIO.HIGH)
+
     def beepShort(self):
         GPIO.output(BUZZER_PIN, GPIO.LOW)
         time.sleep(0.08)
@@ -106,7 +116,7 @@ class LaserMon():
         startTime = time.time()
         endTime = startTime
         self.myDatabase.log_card_activated(self.cardId)
-        lostcounter = NUM_WARNINGS
+        lostcounter = NUM_WARNINGS_CARD_LOST
         deadmanbutton_timeout_s = DEADMANBUTTON_TIMEOUT_S
         lowest_fraction = 1.0
         buttonPressDeadManSwitchDetected() # simulate Button Press (bad bad without lock... but really better not to use those in python callbacks)
@@ -114,8 +124,10 @@ class LaserMon():
             time.sleep(LOOP_DELAY_S)
             fraction_time_remaining_deadmanbutton = 1.0 - (getSecondsSinceLastDeadmanButtonPress()/deadmanbutton_timeout_s)
             lowest_fraction = min(lowest_fraction, fraction_time_remaining_deadmanbutton)
-            if lostcounter == NUM_WARNINGS:
+            if lostcounter == NUM_WARNINGS_CARD_LOST:
                 visualizeRemainingTimeFraction(fraction_time_remaining_deadmanbutton)
+                if fraction_time_remaining_deadmanbutton < FRACTION_RED:
+                    self.beepButtonPressNeeded()
             ## Check DeadMan Button
             if getSecondsSinceLastDeadmanButtonPress() > deadmanbutton_timeout_s:
                 endTime = time.time()
@@ -127,20 +139,24 @@ class LaserMon():
             ## Check for Card
             cardId = self.checkCard()
             if cardId == self.cardId:
-                lostcounter = NUM_WARNINGS
+                # if card was lost and now is back, this also counts as button press
+                if lostcounter < NUM_WARNINGS_CARD_LOST:
+                    buttonPressDeadManSwitchDetected()
+                lostcounter = NUM_WARNINGS_CARD_LOST
                 continue
 
             # Card Lost !!
-            if lostcounter == NUM_WARNINGS:
+            if lostcounter == NUM_WARNINGS_CARD_LOST:
                 endTime = time.time()
                 visualizeCardLost()
             if lostcounter > 0:
                 lostcounter -= 1
                 ## last ditch rescue ability
-                if getSecondsSinceLastDeadmanButtonPress() <= NUM_WARNINGS - lostcounter:
-                    lostcounter = NUM_WARNINGS
+                if getSecondsSinceLastDeadmanButtonPress() <= NUM_WARNINGS_CARD_LOST:
+                    lostcounter = NUM_WARNINGS_CARD_LOST
                     continue
-                self.beepCardLost()
+                if lostcounter < NUM_WARNINGS_CARD_LOST /2:
+                    self.beepCardLost()
                 continue
 
             # Lost counter == 0
@@ -183,7 +199,7 @@ def visualizeRemainingTimeFraction(fraction):
     try:
         #frame_delay_start = "F01F4" #500ms
         frame_delay_start = "F0078" #1/8s
-        if fraction > 0.32:
+        if fraction > FRACTION_RED:
             h = 0.3 #green
         else:
             h = 0.045 #red
