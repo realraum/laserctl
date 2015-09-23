@@ -197,6 +197,7 @@ def visualizeRemainingTimeFraction(fraction):
     if fraction < 0:
         fraction = 0
     try:
+        max_brightness = 0.3
         #frame_delay_start = "F01F4" #500ms
         frame_delay_start = "F0078" #1/8s
         if fraction > FRACTION_RED:
@@ -207,17 +208,18 @@ def visualizeRemainingTimeFraction(fraction):
         num_empty = 8 - int(math.ceil(8.0 * fraction))
         num_gray = 8 - num_full - num_empty
         sub_fraction = (8.0 * fraction - num_full)
-        v = sub_fraction * 0.4 #max brightness
+        assert(sub_fraction <= 1.0)
+        v = sub_fraction * max_brightness #max brightness
         with open(LEDS_TEENSY_TTY, "w") as ttyfh:
             ttyfh.write("S04\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h, 1.0, v)]*num_gray +[hsv(h, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.003, 1.0, v)]*num_gray +[hsv(h-0.003, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, 0.4)]*num_full)+"\n")
-            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, 0.4)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h, 1.0, v)]*num_gray +[hsv(h, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.003, 1.0, v)]*num_gray +[hsv(h-0.003, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0058, 1.0, v)]*num_gray +[hsv(h-0.0058, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.008, 1.0, v)]*num_gray +[hsv(h-0.008, 1.0, max_brightness)]*num_full)+"\n")
+            ttyfh.write(frame_delay_start+"".join([rgb(0, 0, 0)]*num_empty+ [hsv(h-0.0095, 1.0, v)]*num_gray +[hsv(h-0.0095, 1.0, max_brightness)]*num_full)+"\n")
             ttyfh.write("E\n")
     except Exception as e:
         print(e)
