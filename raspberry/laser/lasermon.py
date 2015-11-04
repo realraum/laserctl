@@ -4,6 +4,15 @@ from cardsdb import CardsDB
 import rfid
 import math
 import colorsys
+try:
+    import zmq.utils.jsonapi as json
+    import zmq
+    usezmq_ = True
+    zmqctx_ = None
+    zmqpub_ = None
+    print("ZMQ enabled")
+except:
+    usezmq_ = False
 
 #BUZZER_PIN = 8
 #LASER_PIN = 10
@@ -15,6 +24,7 @@ DEADMANBUTTON_TIMEOUT_S = 30
 LOOP_DELAY_S = 1
 LEDS_TEENSY_TTY = "/dev/ttyACM0"
 FRACTION_RED = 0.32
+ZMQ_BROKER="tcp://zmqbroker.realraum.at:4243"
 
 #----------------------------------------------------------------------------
 #
@@ -109,6 +119,7 @@ class LaserMon():
         secondsRunning = 60
         secondsWarning = 10
 
+        zmqNotifyLaserHot(True)
         visualizeLaserHot()
         self.beepShort()
         self.laserOn()
@@ -170,6 +181,8 @@ class LaserMon():
         numberSeconds = int(endTime - startTime)
         self.myDatabase.log_card_finished(self.cardId, numberSeconds)
         print("%d: End cardID %d, seconds=%d" % (time.time(), myApp.cardId, numberSeconds))
+        zmqNotifyLaserHot(False)
+
 
     def laserOff(self):
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
@@ -244,6 +257,21 @@ def visualizeSendAnimationFile(fn):
     except Exception as e:
         print(e)
 
+def zmqNotifyLaserHot(ishot):
+    global zmqctx_, zmqpub_
+    if usezmq_ == False:
+        return
+    try:
+        if zmqctx_ is None:
+            zmqctx_ = zmq.Context()
+            zmqctx_.linger = 0
+        if zmqpub_ is None:
+            zmqpub_ = zmqctx_.socket(zmq.PUB)
+            zmqpub_.connect(ZMQ_BROKER)
+            zmqpub_.send_multipart([b"LaserCutter", json.dumps({"IsHot":True,"Ts":int(time.time())})])
+    except Exception as e:
+        print(e)
+
 if __name__ == '__main__':
 
     GPIO.setmode(GPIO.BCM)
@@ -263,4 +291,3 @@ if __name__ == '__main__':
             print("%d: Run cardID %d" % (time.time(), myApp.cardId))
             myApp.continueLaser = True
             myApp.run()
-
