@@ -51,6 +51,14 @@ class CardsDB(object):
         c.close()
         return records
 
+    def get_fullname(self, id):
+        db = sqlite3.connect(self.dbfilename)
+        c = db.cursor()
+        c.execute('SELECT vorname, nachname from cards WHERE id=?', (id,))
+        records = c.fetchall()
+        c.close()
+        return " ".join(records[0][:2])
+
     def get_card(self, id):
         db = sqlite3.connect(self.dbfilename)
         c = db.cursor()

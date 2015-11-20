@@ -1,18 +1,19 @@
+#!/usr/bin/python3
 import RPi.GPIO as GPIO
 import time
 from cardsdb import CardsDB
 import rfid
 import math
 import colorsys
+import json
+import atexit
 try:
-    import zmq.utils.jsonapi as json
-    import zmq
-    usezmq_ = True
-    zmqctx_ = None
-    zmqpub_ = None
-    print("ZMQ enabled")
+    import paho.mqtt.client as mqtt
+    usemqtt_ = True
+    mqttclient_ = None
+    print("MQTT enabled")
 except:
-    usezmq_ = False
+    usemqtt_ = False
 
 #BUZZER_PIN = 8
 #LASER_PIN = 10
@@ -24,7 +25,8 @@ DEADMANBUTTON_TIMEOUT_S = 30
 LOOP_DELAY_S = 1
 LEDS_TEENSY_TTY = "/dev/ttyACM0"
 FRACTION_RED = 0.32
-ZMQ_BROKER="tcp://zmqbroker.realraum.at:4243"
+MQTT_BROKER_HOST="mqtt.realraum.at"
+MQTT_BROKER_PORT=1883
 
 #----------------------------------------------------------------------------
 #
@@ -76,6 +78,10 @@ class LaserMon():
         else:
             return -1
 
+    def waitTillCardRemoved(self):
+        while rfid.tagIsPresent():
+            time.sleep(0.2)
+
     def beepCardLost(self):
         GPIO.output(BUZZER_PIN, GPIO.LOW)
         time.sleep(0.05)
@@ -118,8 +124,8 @@ class LaserMon():
 
         secondsRunning = 60
         secondsWarning = 10
-
-        zmqNotifyLaserHot(True)
+        usersname = self.myDatabase.get_fullname(self.cardId)
+        mqttNotifyLaserHot(True, usersname)
         visualizeLaserHot()
         self.beepShort()
         self.laserOn()
@@ -181,8 +187,10 @@ class LaserMon():
         numberSeconds = int(endTime - startTime)
         self.myDatabase.log_card_finished(self.cardId, numberSeconds)
         print("%d: End cardID %d, seconds=%d" % (time.time(), myApp.cardId, numberSeconds))
-        zmqNotifyLaserHot(False)
+        mqttNotifyLaserHot(False,usersname)
 
+        # wait until card removed
+        self.waitTillCardRemoved()
 
     def laserOff(self):
         GPIO.output(BUZZER_PIN, GPIO.HIGH)
@@ -257,20 +265,19 @@ def visualizeSendAnimationFile(fn):
     except Exception as e:
         print(e)
 
-def zmqNotifyLaserHot(ishot):
-    global zmqctx_, zmqpub_
-    if usezmq_ == False:
+def mqttNotifyLaserHot(ishot, who):
+    global mqttclient_
+    if usemqtt_ == False:
         return
     try:
-        if zmqctx_ is None:
-            zmqctx_ = zmq.Context()
-            zmqctx_.linger = 0
-        if zmqpub_ is None:
-            zmqpub_ = zmqctx_.socket(zmq.PUB)
-            zmqpub_.connect(ZMQ_BROKER)
-            zmqpub_.send_multipart([b"LaserCutter", json.dumps({"IsHot":True,"Ts":int(time.time())})])
+        if mqttclient_ is None:
+            mqttclient_ = mqtt.Client(client_id="lasercutter")
+            mqttclient_.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
+            mqttclient_.loop_start()
+            atexit.register(mqttclient_.loop_stop)
+        mqttclient_.publish("realraum/lasercutter/cardpresent", payload=json.dumps({"IsHot":ishot,"Who":who,"Ts":int(time.time())}), qos=0, retain=False)
     except Exception as e:
-        print(e)
+        print("MQTT Error:", e)
 
 if __name__ == '__main__':
 
@@ -291,3 +298,4 @@ if __name__ == '__main__':
             print("%d: Run cardID %d" % (time.time(), myApp.cardId))
             myApp.continueLaser = True
             myApp.run()
+
