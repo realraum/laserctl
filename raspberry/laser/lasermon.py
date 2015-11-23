@@ -275,7 +275,7 @@ def mqttNotifyLaserHot(ishot, who):
             mqttclient_.connect(MQTT_BROKER_HOST, MQTT_BROKER_PORT, 60)
             mqttclient_.loop_start()
             atexit.register(mqttclient_.loop_stop)
-        mqttclient_.publish("realraum/lasercutter/cardpresent", payload=json.dumps({"IsHot":ishot,"Who":who,"Ts":int(time.time())}), qos=0, retain=False)
+        mqttclient_.publish("realraum/lasercutter/cardpresent", payload=json.dumps({"IsHot":ishot,"Who":who,"Ts":int(time.time())}), qos=0, retain=True)
     except Exception as e:
         print("MQTT Error:", e)
 
