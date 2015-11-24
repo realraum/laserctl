@@ -1,0 +1,18 @@
+[Unit]
+Description=LaserAccessCard Monitor
+ConditionPathExists=/home/laser/laser/db/cards.db
+ConditionPathExists=/dev/ttyACM0
+
+[Service]
+Nice=-10
+Type=simple
+Restart=always
+RestartSec=3
+WorkingDirectory=/home/laser/laser/
+ExecStartPre=/bin/stty -F /dev/ttyACM0 115200
+ExecStart=/usr/bin/python3 /home/laser/laser/lasermon.py
+SyslogIdentifier=lasermon
+
+
+[Install]
+WantedBy=multi-user.target
