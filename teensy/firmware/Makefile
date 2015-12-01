@@ -30,7 +30,7 @@ SPREADAVR_PATH := ../../contrib/avr-utils
 RESET_FUNC := $(SPREADAVR_PATH)/tools/reset_lufa_cdc_nowait
 RESET_PARAM := "!\n"
 
-FASTLED_PATH := $(SPREADAVR_PATH)/contrib/FastLED
+FASTLED_PATH := $(SPREADAVR_PATH)/contrib/FastLED-3.1.0
 FASTLED_OPTS := -DCORE_TEENSY
 
 LUFA_PATH := $(SPREADAVR_PATH)/contrib/lufa-LUFA-151115
