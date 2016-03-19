@@ -218,7 +218,7 @@ def visualizeRemainingTimeFraction(fraction):
     if fraction < 0:
         fraction = 0
     try:
-        max_brightness = 0.3
+        max_brightness = 0.15
         #frame_delay_start = "F01F4" #500ms
         frame_delay_start = "F0078" #1/8s
         if fraction > FRACTION_RED:
