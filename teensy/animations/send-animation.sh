@@ -10,7 +10,7 @@ if [ -n "$2" ]; then
     DEVICE="$2"
 fi
 
-cat "$1" > /dev/ttyACM0
+cat "$1" > $DEVICE
 
 exit 0
 
